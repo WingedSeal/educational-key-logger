@@ -1,0 +1,15 @@
+[package]
+name = "educational-key-logger"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "client"
+path = "src/client/main.rs"
+
+[[bin]]
+name = "server"
+path = "src/server/main.rs"
+
+
+[dependencies]
