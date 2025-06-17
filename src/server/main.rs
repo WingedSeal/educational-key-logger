@@ -19,7 +19,7 @@ fn handle_stream(mut stream: TcpStream) {
             }
             Ok(bytes_read) => {
                 let message = String::from_utf8_lossy(&buffer[..bytes_read]);
-                print!("Received: {}", message);
+                println!("Received: {}", message);
             }
             Err(e) => {
                 println!("Read error: {}", e);
