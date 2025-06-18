@@ -31,7 +31,7 @@ fn handle_stream(mut stream: TcpStream) {
 }
 
 struct StreamReadHandler {
-    size_prefix: Option<usize>,
+    size_prefix: Option<u8>,
     /// Buffer for InputEvent. It's length can never exceed size_prefix which is sent through TCPStream.
     input_event_buffer: Vec<u8>,
 }
@@ -48,16 +48,21 @@ impl StreamReadHandler {
         while buffer_index < buffer.len() {
             match self.size_prefix {
                 None => {
-                    self.size_prefix = Some(buffer[buffer_index].into());
+                    self.size_prefix = Some(buffer[buffer_index]);
                     // There'll be at least 1 byte in the buffer. Since bytes_read cannot be 0.
                     debug_assert!(
                         self.input_event_buffer.len() == 0,
-                        "input_event_buffer should be cleared."
+                        "input_event_buffer wasn't cleared."
                     );
                     buffer_index += 1;
                 }
                 Some(size_prefix) => {
-                    let available_space = size_prefix - self.input_event_buffer.len();
+                    debug_assert!(
+                        self.input_event_buffer.len() <= u8::MAX.into(),
+                        "input_event_buffer is larger than 255 ({})",
+                        self.input_event_buffer.len()
+                    );
+                    let available_space = size_prefix as usize - self.input_event_buffer.len();
                     let will_buffer_be_full = buffer.len() - buffer_index >= available_space;
                     if will_buffer_be_full {
                         self.input_event_buffer.extend_from_slice(

@@ -14,9 +14,10 @@ fn main() {
         };
         let encoded = postcard::to_allocvec(&key_event).unwrap();
         let size = encoded.len();
-        if size > u8::MAX.into() {
-            panic!("Encoded InputEvent should never be larger than 255 bytes.");
-        }
+        debug_assert!(
+            size <= u8::MAX.into(),
+            "Encoded InputEvent should never be larger than 255 bytes."
+        );
         if let Err(err) = stream.write_all(&(size as u8).to_be_bytes()) {
             println!("Failed: {}", err)
         }
