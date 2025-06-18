@@ -173,7 +173,7 @@ impl InputEvent {
             KEY_8 => "8",
             KEY_9 => "9",
 
-            KEY_SPACE => "<Space>",
+            KEY_SPACE => " ",
             KEY_ENTER => "<Enter>",
             KEY_BACKSPACE => "<Backspace>",
             KEY_TAB => "<Tab>",
@@ -191,6 +191,7 @@ impl InputEvent {
             KEY_DOT => ".",
             KEY_SLASH => "/",
 
+            KEY_LEFTMETA | KEY_RIGHTMETA => "<Meta>",
             KEY_LEFTSHIFT | KEY_RIGHTSHIFT => "<Shift>",
             KEY_LEFTCTRL | KEY_RIGHTCTRL => "<Ctrl>",
             KEY_LEFTALT | KEY_RIGHTALT => "<Alt>",
@@ -243,6 +244,11 @@ impl InputEvent {
             KEY_MUTE => "<Mute>",
             KEY_VOLUMEDOWN => "<Volume Down>",
             KEY_VOLUMEUP => "<Volume Up>",
+
+            KEY_POWER => "<Power>",
+            KEY_SYSRQ => "<Print Screen>",
+            KEY_MENU => "<Menu>",
+            KEY_PAUSE => "<Pause>",
 
             _ => "?",
         }

