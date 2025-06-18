@@ -1,4 +1,5 @@
 use educational_key_logger::IP_PORT;
+use educational_key_logger::input::InputEvent;
 use std::io::Read;
 use std::net::{TcpListener, TcpStream};
 
@@ -18,8 +19,7 @@ fn handle_stream(mut stream: TcpStream) {
                 break;
             }
             Ok(bytes_read) => {
-                let message = String::from_utf8_lossy(&buffer[..bytes_read]);
-                println!("Received: {}", message);
+                handle_stream_read(&buffer[..bytes_read]);
             }
             Err(e) => {
                 println!("Read error: {}", e);
@@ -27,4 +27,9 @@ fn handle_stream(mut stream: TcpStream) {
             }
         }
     }
+}
+
+fn handle_stream_read(buffer: &[u8]) {
+    let key_event: InputEvent = postcard::from_bytes(&buffer).unwrap();
+    dbg!(key_event);
 }
