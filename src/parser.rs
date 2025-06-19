@@ -8,6 +8,7 @@ struct ModifierState {
     ctrl: bool,
     alt: bool,
     caps_lock: bool,
+    meta: bool,
 }
 
 fn key_map(code: u16) -> Option<&'static str> {
@@ -213,11 +214,14 @@ fn handle_key_press(code: u16, modifier_state: &mut ModifierState, result: &mut 
         KEY_LEFTALT | KEY_RIGHTALT => {
             modifier_state.alt = true;
         }
+        KEY_LEFTMETA | KEY_RIGHTMETA => {
+            modifier_state.meta = true;
+        }
         KEY_CAPSLOCK => {
             modifier_state.caps_lock = !modifier_state.caps_lock;
         }
         KEY_BACKSPACE => {
-            if modifier_state.ctrl || modifier_state.alt {
+            if modifier_state.ctrl || modifier_state.alt || modifier_state.meta {
                 handle_modifier_sequence_char(BACKSPACE, modifier_state, result, false);
             } else {
                 if !result.is_empty() {
@@ -248,6 +252,7 @@ fn handle_key_press(code: u16, modifier_state: &mut ModifierState, result: &mut 
             };
             if modifier_state.ctrl
                 || modifier_state.alt
+                || modifier_state.meta
                 || (modifier_state.shift && shift_char_not_found)
             {
                 handle_modifier_sequence_char(ch, modifier_state, result, shift_char_not_found);
@@ -268,6 +273,9 @@ fn handle_key_release(code: u16, modifier_state: &mut ModifierState) {
         KEY_LEFTALT | KEY_RIGHTALT => {
             modifier_state.alt = false;
         }
+        KEY_LEFTMETA | KEY_RIGHTMETA => {
+            modifier_state.meta = false;
+        }
         _ => {}
     }
 }
@@ -282,7 +290,15 @@ fn handle_modifier_sequence_char(
     prefix.push('<');
 
     let mut has_modifier = false;
+    if modifier_state.meta {
+        prefix.push_str("Meta");
+        has_modifier = true;
+    }
+
     if modifier_state.ctrl {
+        if has_modifier {
+            prefix.push('-');
+        }
         prefix.push_str("Ctrl");
         has_modifier = true;
     }
