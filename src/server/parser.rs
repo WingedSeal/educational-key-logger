@@ -1,6 +1,6 @@
 use input_linux_sys::*;
 
-use crate::input::InputEvent;
+use educational_key_logger::input::InputEvent;
 
 #[derive(Default)]
 struct ModifierState {

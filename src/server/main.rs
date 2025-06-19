@@ -1,6 +1,7 @@
+mod parser;
 use educational_key_logger::IP_PORT;
 use educational_key_logger::input::InputEvent;
-use educational_key_logger::parser::input_events_to_text;
+use parser::input_events_to_text;
 use std::io::{self, Read, Stdout};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
