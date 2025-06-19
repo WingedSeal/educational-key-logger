@@ -224,7 +224,7 @@ fn handle_key_press(code: u16, modifier_state: &mut ModifierState, result: &mut 
             if modifier_state.ctrl || modifier_state.alt || modifier_state.meta {
                 handle_modifier_sequence_char(BACKSPACE, modifier_state, result, false);
             } else {
-                if !result.is_empty() {
+                if !result.is_empty() && !result.ends_with(">") {
                     result.pop();
                 } else {
                     result.push_str("<Backspace>");
