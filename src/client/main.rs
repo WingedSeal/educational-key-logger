@@ -5,6 +5,8 @@ use log::warn;
 use std::{io::Write, net::TcpStream, thread, time::Duration};
 
 fn main() {
+    #[cfg(not(target_os = "linux"))]
+    compile_error!("Linux is the only viable target.");
     // #[cfg(debug_assertions)]
     {
         if std::env::var_os("RUST_LOG").is_none() {
