@@ -1,7 +1,7 @@
 mod parser;
 use educational_key_logger::IP_PORT;
 use educational_key_logger::input::InputEvent;
-use log::{error, info, warn};
+use log::{error, info};
 use parser::input_events_to_text;
 use std::io::{self, Read, Stdout};
 use std::net::{TcpListener, TcpStream};
