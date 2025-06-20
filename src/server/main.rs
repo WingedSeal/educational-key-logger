@@ -153,11 +153,23 @@ impl StreamReadHandler {
         Ok(())
     }
     fn input_event_buffer_full(&mut self) -> Result<(), InvalidEncodedInputEventError> {
-        self.input_events
-            .push(match postcard::from_bytes(&self.input_event_buffer) {
-                Ok(input_event) => input_event,
-                Err(_) => return Err(InvalidEncodedInputEventError),
-            });
+        self.input_events.push(
+            match postcard::from_bytes::<InputEvent>(&self.input_event_buffer) {
+                Ok(input_event) => {
+                    if !input_event.is_key_event() {
+                        return Err(InvalidEncodedInputEventError::new(
+                            "InputEvent is not a key event".to_owned(),
+                        ));
+                    }
+                    input_event
+                }
+                Err(_) => {
+                    return Err(InvalidEncodedInputEventError::new(
+                        "Encoded bytes of InputEvent was invalid.".to_owned(),
+                    ));
+                }
+            },
+        );
         self.input_event_buffer.clear();
         self.size_prefix = None;
         Ok(())
@@ -169,19 +181,26 @@ impl StreamReadHandler {
             .stdout
             .lock()
             .expect("System should not fail to aqquire mutex.");
-        println!(
-            "{}: {}",
-            self.peer_addr,
-            input_events_to_text(&input_events)
-        )
+        let text = input_events_to_text(&input_events);
+        if !text.is_empty() {
+            println!("{}: {}", self.peer_addr, text);
+        }
     }
 }
 
 #[derive(Debug, Clone)]
-struct InvalidEncodedInputEventError;
+struct InvalidEncodedInputEventError {
+    error_msg: String,
+}
+
+impl InvalidEncodedInputEventError {
+    pub fn new(error_msg: String) -> Self {
+        InvalidEncodedInputEventError { error_msg }
+    }
+}
 
 impl fmt::Display for InvalidEncodedInputEventError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Encoded bytes of InputEvent was invalid.")
+        write!(f, "{}", self.error_msg)
     }
 }

