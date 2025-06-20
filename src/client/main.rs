@@ -83,12 +83,12 @@ fn main() {
     }
 }
 #[must_use]
-fn check_sudo() -> bool {
+fn is_sudo() -> bool {
     unsafe { libc::geteuid() == 0 }
 }
 
 fn request_sudo() {
-    if check_sudo() {
+    if is_sudo() {
         return;
     }
     let args: Vec<String> = std::env::args().collect();
