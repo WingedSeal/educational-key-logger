@@ -28,10 +28,22 @@ fn main() {
         match TcpStream::connect(IP_PORT) {
             Ok(mut stream) => {
                 info!("Connected to {}.", IP_PORT);
-                let device = get_device_file();
+                let device = match get_device_file() {
+                    Ok(device) => device,
+                    Err(err) => {
+                        error!("Unable to obtain device\n{}", err);
+                        return;
+                    }
+                };
                 loop {
                     thread::sleep(Duration::from_millis(10));
-                    let key_event = get_key_event(&device);
+                    let key_event = match get_key_event(&device.0, &device.1) {
+                        Ok(key_event) => key_event,
+                        Err(err) => {
+                            error!("Unable to obtain InputEvent\n{}", err);
+                            return;
+                        }
+                    };
                     if !key_event.is_key_event() {
                         continue;
                     };
@@ -43,7 +55,7 @@ fn main() {
                         "Encoded InputEvent should never be larger than 255 bytes."
                     );
                     if let Err(err) = stream.write_all(&(size as u8).to_be_bytes()) {
-                        error!(
+                        warn!(
                             "Failed to send InputEvent size to {}: {}. Trying again in {} seconds.",
                             IP_PORT, err, RETRY_SEC
                         );
@@ -51,7 +63,7 @@ fn main() {
                         break;
                     }
                     if let Err(err) = stream.write_all(&encoded) {
-                        error!(
+                        warn!(
                             "Failed to send InputEvent to {}: {}. Trying again in {} seconds.",
                             IP_PORT, err, RETRY_SEC
                         );
