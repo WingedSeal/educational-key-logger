@@ -3,6 +3,7 @@ use educational_key_logger::IP_PORT;
 use educational_key_logger::input::InputEvent;
 use log::{error, info, warn};
 use parser::input_events_to_text;
+use std::error::Error;
 use std::io::{self, Read, Stdout};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
@@ -198,3 +199,5 @@ impl fmt::Display for InvalidEncodedInputEventError {
         write!(f, "{}", self.error_msg)
     }
 }
+
+impl Error for InvalidEncodedInputEventError {}

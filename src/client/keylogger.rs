@@ -1,4 +1,5 @@
 use educational_key_logger::input::InputEvent;
+use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 use std::process::Command;
@@ -20,6 +21,8 @@ impl fmt::Display for InputEventError {
         write!(f, "{}", self.error_msg)
     }
 }
+
+impl Error for InputEventError {}
 
 pub fn get_key_event(mut device_file: &File, device: &str) -> Result<InputEvent, InputEventError> {
     let mut buf: [u8; 24] = unsafe { mem::zeroed() };
