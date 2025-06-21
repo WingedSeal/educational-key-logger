@@ -152,16 +152,18 @@ impl StreamReadHandler {
             match postcard::from_bytes::<InputEvent>(&self.input_event_buffer) {
                 Ok(input_event) => {
                     if !input_event.is_key_event() {
-                        return Err(InvalidEncodedInputEventError::new(
-                            "InputEvent is not a key event".to_owned(),
-                        ));
+                        return Err(InvalidEncodedInputEventError::new(format!(
+                            "InputEvent is not a key event. (from: {})",
+                            self.peer_addr
+                        )));
                     }
                     input_event
                 }
                 Err(_) => {
-                    return Err(InvalidEncodedInputEventError::new(
-                        "Encoded bytes of InputEvent was invalid.".to_owned(),
-                    ));
+                    return Err(InvalidEncodedInputEventError::new(format!(
+                        "Encoded bytes of InputEvent was invalid. (from: {})",
+                        self.peer_addr
+                    )));
                 }
             },
         );
