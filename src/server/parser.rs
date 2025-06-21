@@ -2,7 +2,7 @@ use input_linux_sys::*;
 
 use educational_key_logger::input::InputEvent;
 
-#[derive(Default)]
+#[derive(Default, Eq, PartialEq, Clone)]
 struct ModifierState {
     shift: bool,
     ctrl: bool,
@@ -190,10 +190,16 @@ fn key_map_shift(code: u16) -> Option<&'static str> {
 pub fn input_events_to_text(events: &[InputEvent]) -> String {
     let mut result = String::with_capacity(events.len() / 2);
     let mut modifier_state = ModifierState::default();
+    let mut last_modifier_state = (ModifierState::default(), false);
     for event in events {
         assert!(event.is_key_event());
         if event.is_key_press() {
-            handle_key_press(event.code, &mut modifier_state, &mut result);
+            handle_key_press(
+                event.code,
+                &mut modifier_state,
+                &mut result,
+                &mut last_modifier_state,
+            );
         } else if event.is_key_release() {
             handle_key_release(event.code, &mut modifier_state);
         }
@@ -203,7 +209,12 @@ pub fn input_events_to_text(events: &[InputEvent]) -> String {
 }
 const BACKSPACE: &str = "\u{0008}";
 
-fn handle_key_press(code: u16, modifier_state: &mut ModifierState, result: &mut String) {
+fn handle_key_press(
+    code: u16,
+    modifier_state: &mut ModifierState,
+    result: &mut String,
+    last_modifier_state: &mut (ModifierState, bool),
+) {
     match code as i32 {
         KEY_LEFTSHIFT | KEY_RIGHTSHIFT => {
             modifier_state.shift = true;
@@ -222,7 +233,15 @@ fn handle_key_press(code: u16, modifier_state: &mut ModifierState, result: &mut 
         }
         KEY_BACKSPACE => {
             if modifier_state.ctrl || modifier_state.alt || modifier_state.meta {
-                handle_modifier_sequence_char(BACKSPACE, modifier_state, result, false);
+                handle_modifier_sequence_char(
+                    BACKSPACE,
+                    modifier_state,
+                    result,
+                    true,
+                    last_modifier_state,
+                );
+                last_modifier_state.0 = modifier_state.clone();
+                last_modifier_state.1 = true;
             } else {
                 if !result.is_empty() && !result.ends_with(">") {
                     result.pop();
@@ -255,9 +274,19 @@ fn handle_key_press(code: u16, modifier_state: &mut ModifierState, result: &mut 
                 || modifier_state.meta
                 || (modifier_state.shift && shift_char_not_found)
             {
-                handle_modifier_sequence_char(ch, modifier_state, result, shift_char_not_found);
+                handle_modifier_sequence_char(
+                    ch,
+                    modifier_state,
+                    result,
+                    shift_char_not_found,
+                    last_modifier_state,
+                );
+                last_modifier_state.0 = modifier_state.clone();
+                last_modifier_state.1 = shift_char_not_found;
             } else {
                 result.push_str(ch);
+                last_modifier_state.0 = modifier_state.clone();
+                last_modifier_state.1 = false;
             }
         }
     }
@@ -285,53 +314,52 @@ fn handle_modifier_sequence_char(
     modifier_state: &ModifierState,
     result: &mut String,
     shift_char_not_found: bool,
+    last_modifier_state: &mut (ModifierState, bool),
 ) {
-    let mut prefix = String::with_capacity(16);
-    prefix.push('<');
+    if result.ends_with('>')
+        && last_modifier_state.0 == *modifier_state
+        && last_modifier_state.1 == shift_char_not_found
+    {
+        result.pop();
+        append_char_to_sequence(ch, result);
+        result.push('>');
+        return;
+    };
+    result.push('<');
 
     let mut has_modifier = false;
     if modifier_state.meta {
-        prefix.push_str("Meta");
+        result.push_str("Meta");
         has_modifier = true;
     }
 
     if modifier_state.ctrl {
         if has_modifier {
-            prefix.push('-');
+            result.push('-');
         }
-        prefix.push_str("Ctrl");
+        result.push_str("Ctrl");
         has_modifier = true;
     }
 
     if modifier_state.shift && shift_char_not_found {
         if has_modifier {
-            prefix.push('-');
+            result.push('-');
         }
-        prefix.push_str("Shift");
+        result.push_str("Shift");
         has_modifier = true;
     }
     if modifier_state.alt {
         if has_modifier {
-            prefix.push('-');
+            result.push('-');
         }
-        prefix.push_str("Alt");
+        result.push_str("Alt");
         has_modifier = true;
     }
 
     if has_modifier {
-        prefix.push('-');
+        result.push('-');
     }
 
-    if result.ends_with('>') && result.contains(&prefix) {
-        if result.rfind(&prefix).is_some() {
-            result.remove(result.len() - 1); // remove '>'
-            append_char_to_sequence(ch, result);
-            result.push('>');
-            return;
-        }
-    }
-
-    result.push_str(&prefix);
     append_char_to_sequence(ch, result);
     result.push('>');
 }
