@@ -37,6 +37,7 @@ fn main() {
                 };
                 loop {
                     thread::sleep(Duration::from_millis(10));
+                    // This sleep is not neccessary. But it's here to prevent flooding the TCPStream.
                     let key_event = match get_key_event(&device.0, &device.1) {
                         Ok(key_event) => key_event,
                         Err(err) => {
@@ -82,11 +83,19 @@ fn main() {
         }
     }
 }
+
+/// Check if process has root permission
+///
+/// # Returns
+///
+/// Whether the process has root permission
 #[must_use]
 fn is_sudo() -> bool {
     unsafe { libc::geteuid() == 0 }
 }
 
+/// If the proccess doesn't have a root permission, starts a new one with `sudo`. If it fails, exit
+/// the program.
 fn request_sudo() {
     if is_sudo() {
         return;
