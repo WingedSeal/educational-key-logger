@@ -1,12 +1,23 @@
 use input_linux_sys::*;
 use serde::{Deserialize, Serialize};
 
+/// InputEvent in linux kernal
+/// - [The Linux Kernal 1.5. Event
+/// Interface](https://www.kernel.org/doc/html/latest/input/input.html#event-interface)
+/// - [The Linux Kernal 2. Input event codes](https://www.kernel.org/doc/html/latest/input/event-codes.html#input-event-codes)
+/// - [`input-event-code.h`](https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h)
 #[repr(C)]
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct InputEvent {
+    /// The timestamp, it returns the time at which the event happened.
+    /// Type is for example EV_REL for relative movement, EV_KEY for a keypress or release.
     pub time: TimeVal,
+    /// - [The Linux Kernal 2.1 Event types](https://www.kernel.org/doc/html/latest/input/event-codes.html#event-types)
     pub event_type: EventType,
+    /// - [The Linux Kernal 2.2 Event codes](https://www.kernel.org/doc/html/latest/input/event-codes.html#event-codes)
     pub code: u16,
+    /// The value the event carries. Either a relative change for EV_REL, absolute new value for EV_ABS (joysticks ...),
+    /// or 0 for EV_KEY for release, 1 for keypress and 2 for autorepeat.
     pub value: EventValue,
 }
 
@@ -17,55 +28,38 @@ pub struct TimeVal {
     pub tv_usec: i64,
 }
 
+/// - [The Linux Kernal 2.1 Event types](https://www.kernel.org/doc/html/latest/input/event-codes.html#event-types)
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EventType {
-    /// Synchronization events - used to separate and synchronize events
+    /// Synchronization events - Used as markers to separate events. Events may be separated in time or in space, such as with the multitouch protocol.
     Syn = EV_SYN as u16,
-    /// Key events - keyboards, buttons, key-like devices (press/release/repeat)
+    /// Key events - Used to describe state changes of keyboards, buttons, or other key-like devices.
     Key = EV_KEY as u16,
-    /// Relative events - mouse movement, scroll wheels (relative changes)
+    /// Relative events - Used to describe relative axis value changes, e.g. moving the mouse 5 units to the left.
     Rel = EV_REL as u16,
-    /// Absolute events - touchpads, joysticks, tablets (absolute positions)
+    /// Absolute events - Used to describe absolute axis value changes, e.g. describing the coordinates of a touch on a touchscreen.
     Abs = EV_ABS as u16,
-    /// Miscellaneous events - data that doesn't fit other categories
+    /// Miscellaneous events - Used to describe miscellaneous input data that do not fit into other types.
     Msc = EV_MSC as u16,
-    /// Switch events - binary state switches (lid open/closed, etc.)
+    /// Switch events - Used to describe binary state input switches.
     Sw = EV_SW as u16,
-    /// LED events - control LEDs on devices (Caps Lock, Num Lock, etc.)
+    /// LED events - Used to turn LEDs on devices on and off.
     Led = EV_LED as u16,
-    /// Sound events - beeps, buzzers, simple audio output
+    /// Sound events - Used to output sound to devices.
     Snd = EV_SND as u16,
-    /// Repeat events - autorepeat configuration for keys
+    /// Repeat events - Used for autorepeating devices.
     Rep = EV_REP as u16,
-    /// Force feedback events - rumble, vibration effects
+    /// Force feedback events - Used to send force feedback commands to an input device.
     Ff = EV_FF as u16,
-    /// Power management events - power button, battery events
+    /// Power management events - A special type for power button and switch input.
     Pwr = EV_PWR as u16,
-    /// Force feedback status - feedback from force feedback devices
+    /// Force feedback status - Used to receive force feedback device status.
     FfStatus = EV_FF_STATUS as u16,
 }
 
-impl EventType {
-    pub fn from_u16(value: u16) -> Option<Self> {
-        match value {
-            0x00 => Some(EventType::Syn),
-            0x01 => Some(EventType::Key),
-            0x02 => Some(EventType::Rel),
-            0x03 => Some(EventType::Abs),
-            0x04 => Some(EventType::Msc),
-            0x05 => Some(EventType::Sw),
-            0x11 => Some(EventType::Led),
-            0x12 => Some(EventType::Snd),
-            0x14 => Some(EventType::Rep),
-            0x15 => Some(EventType::Ff),
-            0x16 => Some(EventType::Pwr),
-            0x17 => Some(EventType::FfStatus),
-            _ => None,
-        }
-    }
-}
-
+/// The value the event carries. Either a relative change for EV_REL, absolute new value for EV_ABS (joysticks ...),
+/// or 0 for EV_KEY for release, 1 for keypress and 2 for autorepeat.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EventValue(pub i32);
@@ -77,10 +71,6 @@ impl EventValue {
 
     pub fn new(value: i32) -> Self {
         EventValue(value)
-    }
-
-    pub fn to_i32(&self) -> i32 {
-        self.0
     }
 
     pub fn is_key_released(&self) -> bool {
@@ -125,9 +115,7 @@ impl InputEvent {
         self.value.is_key_released()
     }
 
-    pub fn is_sync_event(&self) -> bool {
-        self.event_type == EventType::Syn
-    }
+    /// Convert a single InputEvent into a string. Used mainly for debugging.
     pub fn code_as_string(&self) -> &str {
         assert!(
             self.is_key_event(),
