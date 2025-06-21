@@ -28,6 +28,7 @@ fn main() {
             return;
         }
     };
+    info!("Listening on {}", IP_PORT);
     let stdout_mutex = Arc::new(Mutex::new(io::stdout()));
     for stream_result in listener.incoming() {
         match stream_result {
@@ -87,6 +88,10 @@ fn handle_stream(mut stream: TcpStream, stdout: Arc<Mutex<Stdout>>, peer_addr: S
                 if let Err(err) = stream_read_handler.read_buffer(&buffer[..bytes_read]) {
                     warn!("Failed to read buffer: {}", err);
                     warn!("Shutting down the connection");
+                    error!(
+                        "POTENTIAL ATTACK DETECTED: {}",
+                        stream_read_handler.peer_addr
+                    );
                     // Since TCP guarantee reliability, failing to read buffer can only mean an
                     // attack from a threat actor. Hence stream doesn't finish gracefully.
                     drop(stream);
