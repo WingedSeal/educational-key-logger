@@ -60,15 +60,12 @@ fn handle_stream(mut stream: TcpStream, stdout: Arc<Mutex<Stdout>>, peer_addr: S
     let mut buffer = [0; 1024];
     let mut stream_read_handler = StreamReadHandler::new(stdout.clone(), peer_addr);
     if let Err(e) = stream.set_read_timeout(Some(TIMEOUT_DURATION)) {
-        eprintln!("Failed to set read timeout: {}", e);
+        error!("Failed to set read timeout: {}", e);
         return;
     }
     loop {
         match stream.read(&mut buffer) {
             Ok(0) => {
-                let _guard = stdout
-                    .lock()
-                    .expect("System should not fail to aqquire mutex.");
                 info!("Client disconnected: {}", stream_read_handler.peer_addr);
                 break;
             }
@@ -87,9 +84,6 @@ fn handle_stream(mut stream: TcpStream, stdout: Arc<Mutex<Stdout>>, peer_addr: S
                 }
             }
             Err(e) => {
-                let _guard = stdout
-                    .lock()
-                    .expect("System should not fail to aqquire mutex.");
                 error!("Read error: {}", e);
                 break;
             }
@@ -177,11 +171,11 @@ impl StreamReadHandler {
 
     fn handle_input_events(&mut self) {
         let input_events = std::mem::take(&mut self.input_events);
+        let text = input_events_to_text(&input_events);
         let _guard = self
             .stdout
             .lock()
             .expect("System should not fail to aqquire mutex.");
-        let text = input_events_to_text(&input_events);
         if !text.is_empty() {
             println!("{}: {}", self.peer_addr, text);
         }
