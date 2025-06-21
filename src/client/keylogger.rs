@@ -24,6 +24,25 @@ impl fmt::Display for InputEventError {
 
 impl Error for InputEventError {}
 
+/// Get InputEvent (that should be a key event) from device file
+///
+/// # Arguments
+///
+/// * `device_file` - A keyboard device file
+/// * `device` - Path to device file, used for errors
+///
+/// # Panics
+///
+/// * If number of bytes read from device file does not match InputEvent. This should be literally
+/// impossible.
+///
+/// # Errors
+///
+/// * `InputEventError` - When failing to read from a device file
+///
+/// # Returns
+///
+/// An InputEvent that's a key event
 pub fn get_key_event(mut device_file: &File, device: &str) -> Result<InputEvent, InputEventError> {
     let mut buf: [u8; 24] = unsafe { mem::zeroed() };
     let num_bytes = device_file.read(&mut buf).map_err(|e| {
@@ -36,6 +55,15 @@ pub fn get_key_event(mut device_file: &File, device: &str) -> Result<InputEvent,
     Ok(event)
 }
 
+/// Find a default device, then get device file from it along with its path
+///
+/// # Errors
+///
+/// * `InputEventError` - If device file cannot be openned
+///
+/// # Returns
+///
+/// Device file and its path
 pub fn get_device_file() -> Result<(File, String), InputEventError> {
     let device = get_default_device()?;
     let device_file = File::open(&device).map_err(|e| {
@@ -44,28 +72,51 @@ pub fn get_device_file() -> Result<(File, String), InputEventError> {
     Ok((device_file, device))
 }
 
+/// Get the first device path that's a keyboard
+///
+/// # Errors
+///
+/// * `InputEventError` - When failing to obtain devices list
+///
+/// # Returns
+///
+/// Path to a device file
 fn get_default_device() -> Result<String, InputEventError> {
     let mut filenames = get_keyboard_device_filenames()?;
     Ok(filenames.swap_remove(0))
 }
 
+/// Get keyboard device filenames
+///
+/// Search of device in /procs/bus/input/devices then filter only keyboard devices. Format the
+/// devices into device file paths and put them in a vector.
+///
+/// # Errors
+///
+/// * `InputEventError` - If executed command to obtain devices fail
+///
+/// # Returns
+///
+/// List of all device file paths
 fn get_keyboard_device_filenames() -> Result<Vec<String>, InputEventError> {
-    let mut command_str = "grep -E 'Handlers|EV' /proc/bus/input/devices".to_string();
-    command_str.push_str("| grep -B1 120013");
-    command_str.push_str("| grep -Eo event[0-9]+");
+    const GREP_DEVICES: &str = "grep -E 'Handlers|EV' /proc/bus/input/devices";
+    const GREP_KEYBOARDS: &str = "| grep -B1 120013";
+    const GREP_NAMES: &str = "| grep -Eo event[0-9]+";
+    let mut command_str = GREP_DEVICES.to_string();
+    command_str.push_str(GREP_KEYBOARDS);
+    command_str.push_str(GREP_NAMES);
 
-    let res = Command::new("sh")
+    let result = Command::new("sh")
         .arg("-c")
         .arg(command_str)
         .output()
         .map_err(|e| InputEventError::new(format!("Failed to obtain devices list: {}", e)))?;
-    let res_str = std::str::from_utf8(&res.stdout)
+    let result_string = std::str::from_utf8(&result.stdout)
         .map_err(|e| InputEventError::new(format!("Failed to obtain devices list: {}", e)))?;
-    let mut filenames = Vec::new();
-    for file in res_str.trim().split('\n') {
-        let mut filename = "/dev/input/".to_string();
-        filename.push_str(file);
-        filenames.push(filename);
-    }
+    let filenames = result_string
+        .trim()
+        .split('\n')
+        .map(|file| format!("/dev/input/{}", file))
+        .collect();
     Ok(filenames)
 }
