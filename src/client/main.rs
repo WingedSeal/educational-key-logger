@@ -57,7 +57,7 @@ fn main() {
                     );
                     if let Err(err) = stream.write_all(&(size as u8).to_be_bytes()) {
                         warn!(
-                            "Failed to send InputEvent size to {}: {}. Trying again in {} seconds.",
+                            "Failed to send InputEvent size to {}: {}. Reconnecting in {} seconds.",
                             IP_PORT, err, RETRY_SEC
                         );
                         thread::sleep(Duration::from_secs(RETRY_SEC));
@@ -65,7 +65,7 @@ fn main() {
                     }
                     if let Err(err) = stream.write_all(&encoded) {
                         warn!(
-                            "Failed to send InputEvent to {}: {}. Trying again in {} seconds.",
+                            "Failed to send InputEvent to {}: {}. Reconnecting in {} seconds.",
                             IP_PORT, err, RETRY_SEC
                         );
                         thread::sleep(Duration::from_secs(RETRY_SEC));
