@@ -49,7 +49,7 @@ pub fn get_key_event(mut device_file: &File, device: &str) -> Result<InputEvent,
     let num_bytes = device_file.read(&mut buf).map_err(|e| {
         InputEventError::new(format!("Failed to read from device {}: {}", device, e))
     })?;
-    debug_assert!(
+    assert!(
         num_bytes == INPUT_EVENT_SIZE,
         "Error while reading from device file"
     );
