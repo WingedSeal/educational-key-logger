@@ -98,7 +98,7 @@ impl std::fmt::Debug for EventValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.to_string() {
             Some(string) => f.write_str(string),
-            _ => f.debug_tuple("EventValue").field(&self.0).finish(),
+            None => f.debug_tuple("EventValue").field(&self.0).finish(),
         }
     }
 }
