@@ -44,13 +44,15 @@ impl Error for InputEventError {}
 ///
 /// An InputEvent that's a key event
 pub fn get_key_event(mut device_file: &File, device: &str) -> Result<InputEvent, InputEventError> {
-    let mut buf: [u8; 24] = unsafe { mem::zeroed() };
+    const INPUT_EVENT_SIZE: usize = mem::size_of::<InputEvent>();
+    let mut buf: [u8; INPUT_EVENT_SIZE] = [0; INPUT_EVENT_SIZE];
     let num_bytes = device_file.read(&mut buf).map_err(|e| {
         InputEventError::new(format!("Failed to read from device {}: {}", device, e))
     })?;
-    if num_bytes != mem::size_of::<InputEvent>() {
-        panic!("Error while reading from device file");
-    }
+    debug_assert!(
+        num_bytes == INPUT_EVENT_SIZE,
+        "Error while reading from device file"
+    );
     let event: InputEvent = unsafe { mem::transmute(buf) };
     Ok(event)
 }
