@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{fmt, thread};
 
-/// How long should the handler wait until it process InputEvents
+/// How long should the handler wait until it processes InputEvents
 const DEBOUNCE_DURATION: Duration = Duration::from_secs(2);
 
 fn main() {
