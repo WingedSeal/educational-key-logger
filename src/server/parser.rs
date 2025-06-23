@@ -10,6 +10,15 @@ struct ModifierState {
     meta: bool,
 }
 
+/// Get a string representation of InputEvent's code
+///
+/// # Arguments
+///
+/// * `code` - InputEvent's code
+///
+/// # Returns
+///
+/// String representation if there is one. Otherwise, none.
 fn key_map(code: u16) -> Option<&'static str> {
     match code {
         KEY_A => Some("a"),
@@ -130,6 +139,17 @@ fn key_map(code: u16) -> Option<&'static str> {
     }
 }
 
+/// Get a string representation of InputEvent's code when holding Shift
+///
+/// Some `code` may exist in `key_map` but not `key_map_shift`
+///
+/// # Arguments
+///
+/// * `code` - InputEvent's code
+///
+/// # Returns
+///
+/// String representation when holding shift if there is one. Otherwise, none.
 fn key_map_shift(code: u16) -> Option<&'static str> {
     match code {
         KEY_A => Some("A"),
@@ -186,6 +206,15 @@ fn key_map_shift(code: u16) -> Option<&'static str> {
     }
 }
 
+/// Convert array of InputEvents into human-readable text
+///
+/// # Arguments
+///
+/// * `events` - InputEvents
+///
+/// # Returns
+///
+/// Human-readable text
 pub fn input_events_to_text(events: &[InputEvent]) -> String {
     let mut result = String::with_capacity(events.len() / 2);
     let mut modifier_state = ModifierState::default();
@@ -208,6 +237,7 @@ pub fn input_events_to_text(events: &[InputEvent]) -> String {
 }
 const BACKSPACE: &str = "\u{0008}";
 
+/// Run when a key is pressed, used by `input_events_to_text`
 fn handle_key_press(
     code: u16,
     modifier_state: &mut ModifierState,
@@ -290,6 +320,8 @@ fn handle_key_press(
         }
     }
 }
+
+/// Run when a key is pressed, used by `input_events_to_text`
 fn handle_key_release(code: u16, modifier_state: &mut ModifierState) {
     match code {
         KEY_LEFTSHIFT | KEY_RIGHTSHIFT => {
@@ -308,6 +340,7 @@ fn handle_key_release(code: u16, modifier_state: &mut ModifierState) {
     }
 }
 
+/// Run when another key is pressed while there's at least 1 modifier key pressed.
 fn handle_modifier_sequence_char(
     ch: &str,
     modifier_state: &ModifierState,
@@ -363,6 +396,7 @@ fn handle_modifier_sequence_char(
     result.push('>');
 }
 
+/// Append bare character (without <>) to result string, used in `handle_modifier_sequence_char`
 fn append_char_to_sequence(ch: &str, result: &mut String) {
     if ch == BACKSPACE {
         result.push_str("Backspace");
