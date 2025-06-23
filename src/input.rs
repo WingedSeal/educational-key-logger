@@ -1,4 +1,4 @@
-use input_linux_sys::*;
+use crate::input_event_codes::*;
 use serde::{Deserialize, Serialize};
 
 /// InputEvent in linux kernal
@@ -33,29 +33,29 @@ pub struct TimeVal {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EventType {
     /// Synchronization events - Used as markers to separate events. Events may be separated in time or in space, such as with the multitouch protocol.
-    Syn = EV_SYN as u16,
+    Syn = EV_SYN,
     /// Key events - Used to describe state changes of keyboards, buttons, or other key-like devices.
-    Key = EV_KEY as u16,
+    Key = EV_KEY,
     /// Relative events - Used to describe relative axis value changes, e.g. moving the mouse 5 units to the left.
-    Rel = EV_REL as u16,
+    Rel = EV_REL,
     /// Absolute events - Used to describe absolute axis value changes, e.g. describing the coordinates of a touch on a touchscreen.
-    Abs = EV_ABS as u16,
+    Abs = EV_ABS,
     /// Miscellaneous events - Used to describe miscellaneous input data that do not fit into other types.
-    Msc = EV_MSC as u16,
+    Msc = EV_MSC,
     /// Switch events - Used to describe binary state input switches.
-    Sw = EV_SW as u16,
+    Sw = EV_SW,
     /// LED events - Used to turn LEDs on devices on and off.
-    Led = EV_LED as u16,
+    Led = EV_LED,
     /// Sound events - Used to output sound to devices.
-    Snd = EV_SND as u16,
+    Snd = EV_SND,
     /// Repeat events - Used for autorepeating devices.
-    Rep = EV_REP as u16,
+    Rep = EV_REP,
     /// Force feedback events - Used to send force feedback commands to an input device.
-    Ff = EV_FF as u16,
+    Ff = EV_FF,
     /// Power management events - A special type for power button and switch input.
-    Pwr = EV_PWR as u16,
+    Pwr = EV_PWR,
     /// Force feedback status - Used to receive force feedback device status.
-    FfStatus = EV_FF_STATUS as u16,
+    FfStatus = EV_FF_STATUS,
 }
 
 /// The value the event carries. Either a relative change for EV_REL, absolute new value for EV_ABS (joysticks ...),
@@ -122,7 +122,7 @@ impl InputEvent {
             "code_as_string was called on non key event"
         );
 
-        match self.code as i32 {
+        match self.code {
             KEY_A => "A",
             KEY_B => "B",
             KEY_C => "C",
