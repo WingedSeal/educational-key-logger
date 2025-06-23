@@ -1,10 +1,10 @@
 use crate::input_event_codes::*;
 use serde::{Deserialize, Serialize};
 
-/// InputEvent in linux kernal
-/// - [The Linux Kernal 1.5. Event
+/// InputEvent in linux kernel
+/// - [The Linux Kernel 1.5. Event
 /// Interface](https://www.kernel.org/doc/html/latest/input/input.html#event-interface)
-/// - [The Linux Kernal 2. Input event codes](https://www.kernel.org/doc/html/latest/input/event-codes.html#input-event-codes)
+/// - [The Linux Kernel 2. Input event codes](https://www.kernel.org/doc/html/latest/input/event-codes.html#input-event-codes)
 /// - [`input-event-code.h`](https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h)
 #[repr(C)]
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -12,9 +12,9 @@ pub struct InputEvent {
     /// The timestamp, it returns the time at which the event happened.
     /// Type is for example EV_REL for relative movement, EV_KEY for a keypress or release.
     pub time: TimeVal,
-    /// - [The Linux Kernal 2.1 Event types](https://www.kernel.org/doc/html/latest/input/event-codes.html#event-types)
+    /// - [The Linux Kernel 2.1 Event types](https://www.kernel.org/doc/html/latest/input/event-codes.html#event-types)
     pub event_type: EventType,
-    /// - [The Linux Kernal 2.2 Event codes](https://www.kernel.org/doc/html/latest/input/event-codes.html#event-codes)
+    /// - [The Linux Kernel 2.2 Event codes](https://www.kernel.org/doc/html/latest/input/event-codes.html#event-codes)
     pub code: u16,
     /// The value the event carries. Either a relative change for EV_REL, absolute new value for EV_ABS (joysticks ...),
     /// or 0 for EV_KEY for release, 1 for keypress and 2 for autorepeat.
@@ -28,7 +28,7 @@ pub struct TimeVal {
     pub tv_usec: i64,
 }
 
-/// - [The Linux Kernal 2.1 Event types](https://www.kernel.org/doc/html/latest/input/event-codes.html#event-types)
+/// - [The Linux Kernel 2.1 Event types](https://www.kernel.org/doc/html/latest/input/event-codes.html#event-types)
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EventType {
